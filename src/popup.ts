@@ -20,7 +20,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Add sign out handler
       const signOutButton = document.getElementById('signout-button')
       signOutButton?.addEventListener('click', async () => {
-        await chrome.storage.local.remove(['authToken', 'refreshToken'])
+        await chrome.storage.local.remove([
+          'itsWareAuthToken',
+          'itsWareRefreshToken',
+          'itsWareDevices',
+        ])
         window.location.reload()
       })
     } else {

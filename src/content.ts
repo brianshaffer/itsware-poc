@@ -160,31 +160,43 @@ async function injectItsWareEmbed() {
     const response = await chrome.runtime.sendMessage({ type: 'CHECK_AUTH' })
 
     embedDiv.innerHTML = `
-      <div>
-        <img src="${chrome.runtime.getURL(
-          'img/itsware-logo-dark.svg'
-        )}" alt="ItsWare" class="h-8" />
-        <button class="w-full h-[48px] flex shadow-md rounded-md border-[#484B66] border-[1px] border-solid items-center justify-center text-[#ffffff] text-[14px] pt-[2px]" style="background: linear-gradient(180deg, #12142d, #0b0d1a)">
-          ${response.isAuthenticated ? 'Add Device' : 'Sign In to ItsWare'}
-        </button>
+      <div class="itsware-clickup-container">
+        <div class="itsware-clickup-header">
+          <img 
+            src="${chrome.runtime.getURL('img/itsware-logo-only.svg')}" 
+            alt="ItsWare"
+            class="itsware-clickup-logo"
+          />
+          <span class="itsware-clickup-title">
+            ItsWare Devices
+          </span>
+        </div>
+
+        <div class="itsware-clickup-content">
+          <div class="itsware-clickup-content-wrapper">
+            ${
+              response.isAuthenticated
+                ? `
+              <div class="itsware-clickup-device-info">
+                <p>Connected Device: MacBook Pro</p>
+                <p>Status: Active</p>
+              </div>
+            `
+                : `
+              <div>
+                <a 
+                  href="https://oauth2.itsware.com/?client_id=CHROMEEXTENSION&redirect_uri=https:%2F%2Fitsware.com%2Fextension-auth-success&response_type=code&scope=read&state=12345"
+                  class="itsware-clickup-signin"
+                >
+                  Sign In to ItsWare
+                </a>
+              </div>
+            `
+            }
+          </div>
+        </div>
       </div>
     `
-
-    // Add click handler for the button
-    const button = embedDiv.querySelector('button')
-    if (button) {
-      button.addEventListener('click', () => {
-        if (!response.isAuthenticated) {
-          chrome.runtime.sendMessage({
-            type: 'OPEN_AUTH',
-            url: 'https://oauth2.itsware.com/?client_id=CHROMEEXTENSION&redirect_uri=https:%2F%2Fitsware.com%2Fextension-auth-success&response_type=code&scope=read&state=12345',
-          })
-        } else {
-          console.log('Add device clicked')
-          // TODO: Handle add device
-        }
-      })
-    }
 
     heroSection.parentNode?.insertBefore(embedDiv, heroSection.nextSibling)
     console.log('ItsWare embed injected')
