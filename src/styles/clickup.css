@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for ClickUp embed */
+#itsware-clickup-embed {
+  @apply bg-white text-[#838383] border-solid border border-[#e8e8e8] rounded-[6px] p-3 my-5;
+}

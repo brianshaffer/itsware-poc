@@ -22,7 +22,7 @@ module.exports = {
         exclude: /node_modules/,
       },
       {
-        test: /\.css$/,
+        test: /popup\.css$/,
         use: ['style-loader', 'css-loader', 'postcss-loader'],
       },
       {
@@ -43,6 +43,18 @@ module.exports = {
         { from: 'src/manifest.json', to: 'manifest.json' },
         { from: 'src/popup.html', to: 'popup.html' },
         { from: 'src/img', to: 'img', noErrorOnMissing: true },
+        {
+          from: 'src/styles/clickup.css',
+          to: 'styles/clickup.css',
+          transform(content) {
+            return require('postcss')([
+              require('tailwindcss'),
+              require('autoprefixer'),
+            ])
+              .process(content, { from: 'src/styles/clickup.css' })
+              .then((result) => result.css)
+          },
+        },
       ],
     }),
   ],

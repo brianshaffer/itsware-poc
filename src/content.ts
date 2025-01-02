@@ -16,4 +16,195 @@ if (window.location.pathname === '/extension-auth-success') {
       }
     )
   }
+} else if (window.location.hostname === 'oauth2.itsware.com') {
+  // Check if we're on the initial oAuth page (with required URL parameters)
+  const urlParams = new URLSearchParams(window.location.search)
+  const redirectUri = urlParams.get('redirect_uri')
+
+  if (redirectUri) {
+    console.log('On ItsWare OAuth page')
+    // Inject fake auth form for POC
+    injectOAuthForm(redirectUri)
+  }
 }
+
+function injectOAuthForm(redirectUri: string) {
+  const formDiv = document.createElement('div')
+  formDiv.style.cssText = `
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 9, 19, 0.95);
+  `
+
+  formDiv.innerHTML = `
+	<div style="
+      background-color: #12142d;
+      padding: 32px;
+      border-radius: 8px;
+      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+      width: 400px;
+      border: 1px solid #484B66;
+    ">
+  <h1 style="
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 24px;
+        color: white;
+        text-align: center;
+      ">Demo OAuth</h1>
+  <form id="demo-oauth-form" style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="width: 100%;">
+      <input type="email" placeholder="Email" disabled="" value="demo@itsware.com" style="
+              width: 100%;
+              padding-inline: 8px;
+              padding-block: 8px;
+              border-radius: 4px;
+              background-color: #1a1d3d;
+              color: #9ca3af;
+              border: 1px solid #484B66;
+              box-sizing: border-box;
+            ">
+    </div>
+    <div style="width: 100%;">
+      <input type="password" placeholder="Password" disabled="" value="••••••••" style="
+              width: 100%;
+              padding-inline: 8px;
+              padding-block: 8px;
+              border-radius: 4px;
+              background-color: #1a1d3d;
+              color: #9ca3af;
+              border: 1px solid #484B66;
+              box-sizing: border-box;
+            ">
+    </div>
+    <button type="submit" style="
+            width: 100%; 
+            margin: 0px; 
+            padding: 8px 24px; 
+            background: linear-gradient(rgb(18, 20, 45), rgb(11, 13, 26)); 
+            color: white; 
+            border-radius: 4px; 
+            box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px; 
+            border: 1px solid rgb(72, 75, 102); 
+            cursor: pointer; 
+            opacity: 1;" 
+            onmouseover="this.style.opacity='0.9'" 
+            onmouseout="this.style.opacity='1'">
+      Bypass With Fake Tokens
+    </button>
+  </form>
+</div>
+
+  `
+
+  document.body.appendChild(formDiv)
+
+  // Add form submit handler
+  const form = document.getElementById('demo-oauth-form')
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const code = 'itswareoauthdemoauthorizationcode12345'
+    const finalUrl = new URL(decodeURIComponent(redirectUri))
+    finalUrl.searchParams.append('code', code)
+    window.location.href = finalUrl.toString()
+  })
+}
+
+// ClickUp task page handler
+function handleClickUpTaskPage() {
+  const taskPattern = /^https:\/\/app\.clickup\.com\/t\/\w+$/
+  if (taskPattern.test(window.location.href)) {
+    console.log('On ClickUp task page')
+    injectStyles()
+
+    // Use MutationObserver to wait for hero section
+    const observer = new MutationObserver((mutations, obs) => {
+      const heroSection = document.querySelector('.cu-task-hero-section')
+      if (heroSection && !document.getElementById('itsware-clickup-embed')) {
+        injectItsWareEmbed()
+        obs.disconnect() // Stop observing once we've injected
+      }
+    })
+
+    // Start observing
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+  }
+}
+
+function injectStyles() {
+  if (document.getElementById('itsware-clickup-styles')) return
+
+  const link = document.createElement('link')
+  link.id = 'itsware-clickup-styles'
+  link.rel = 'stylesheet'
+  link.type = 'text/css'
+  link.href = chrome.runtime.getURL('styles/clickup.css')
+  document.head.appendChild(link)
+}
+
+async function injectItsWareEmbed() {
+  if (document.getElementById('itsware-clickup-embed')) return
+
+  const heroSection = document.querySelector('.cu-task-hero-section')
+  if (heroSection) {
+    const embedDiv = document.createElement('div')
+    embedDiv.id = 'itsware-clickup-embed'
+
+    // Check auth status
+    const response = await chrome.runtime.sendMessage({ type: 'CHECK_AUTH' })
+
+    embedDiv.innerHTML = `
+      <div>
+        <img src="${chrome.runtime.getURL(
+          'img/itsware-logo-dark.svg'
+        )}" alt="ItsWare" class="h-8" />
+        <button class="w-full h-[48px] flex shadow-md rounded-md border-[#484B66] border-[1px] border-solid items-center justify-center text-[#ffffff] text-[14px] pt-[2px]" style="background: linear-gradient(180deg, #12142d, #0b0d1a)">
+          ${response.isAuthenticated ? 'Add Device' : 'Sign In to ItsWare'}
+        </button>
+      </div>
+    `
+
+    // Add click handler for the button
+    const button = embedDiv.querySelector('button')
+    if (button) {
+      button.addEventListener('click', () => {
+        if (!response.isAuthenticated) {
+          chrome.runtime.sendMessage({
+            type: 'OPEN_AUTH',
+            url: 'https://oauth2.itsware.com/?client_id=CHROMEEXTENSION&redirect_uri=https:%2F%2Fitsware.com%2Fextension-auth-success&response_type=code&scope=read&state=12345',
+          })
+        } else {
+          console.log('Add device clicked')
+          // TODO: Handle add device
+        }
+      })
+    }
+
+    heroSection.parentNode?.insertBefore(embedDiv, heroSection.nextSibling)
+    console.log('ItsWare embed injected')
+  }
+}
+
+// Initial check
+handleClickUpTaskPage()
+
+// Listen for URL changes only
+let lastUrl = window.location.href
+const urlObserver = new MutationObserver(() => {
+  if (lastUrl !== window.location.href) {
+    lastUrl = window.location.href
+    handleClickUpTaskPage()
+  }
+})
+
+// Observe the document body for URL changes
+urlObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+})
