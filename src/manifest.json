@@ -3,8 +3,8 @@
   "name": "ItsWare POC",
   "version": "1.0.0",
   "description": "Chrome Extension POC",
-  "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": ["tabs", "activeTab", "storage", "scripting"],
+  "host_permissions": ["<all_urls>", "https://*.itsware.com/*"],
   "background": {
     "service_worker": "background.js"
   },
