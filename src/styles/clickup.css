@@ -5,91 +5,107 @@
 /* Custom styles for ClickUp embed */
 #itsware-clickup-embed {
   @apply my-5;
-}
 
-.itsware-clickup-container {
-  @apply flex flex-col gap-4;
-}
+  .itsware-clickup-container {
+    @apply flex flex-col gap-4;
+  }
 
-.itsware-clickup-header {
-  @apply flex items-center gap-2;
-}
+  .itsware-clickup-header {
+    @apply flex items-center gap-2;
+  }
 
-.itsware-clickup-logo {
-  @apply h-8;
-}
+  .itsware-clickup-logo {
+    @apply h-8;
+  }
 
-.itsware-clickup-title {
-  @apply text-[rgb(32,32,32)] text-lg font-semibold;
-}
+  .itsware-clickup-title {
+    @apply text-[rgb(32,32,32)] text-lg font-semibold;
+  }
 
-.itsware-clickup-content {
-  @apply bg-white text-[#838383] border-solid border border-[#e8e8e8] rounded-[6px] p-3;
-}
+  .itsware-clickup-content {
+    @apply bg-white text-[#838383] border-solid border border-[#e8e8e8] rounded-[6px] p-3;
+  }
 
-.itsware-clickup-content-wrapper {
-  @apply flex justify-between items-center;
-}
+  .itsware-clickup-content-wrapper {
+    @apply flex flex-col gap-4;
+  }
 
-.itsware-clickup-devices {
-  @apply text-[#484B66] relative;
-}
+  .itsware-clickup-devices {
+    @apply w-full;
+  }
 
-.itsware-clickup-devices p {
-  @apply mb-2 last:mb-0;
-}
+  .itsware-clickup-devices p {
+    @apply mb-2 last:mb-0;
+  }
 
-.itsware-clickup-signin {
-  @apply px-4 py-2 bg-gradient-to-b from-[#12142d] to-[#0b0d1a] text-white rounded border border-[#484B66] text-sm no-underline inline-block;
-}
+  .itsware-clickup-signin {
+    @apply px-4 py-2 bg-gradient-to-b from-[#12142d] to-[#0b0d1a] text-white rounded border border-[#484B66] text-sm no-underline inline-block;
+  }
 
-.itsware-clickup-attach-button {
-  @apply mt-4 text-sm text-[#484B66] hover:text-[#12142d] cursor-pointer;
-}
+  .itsware-clickup-attach-button {
+    @apply text-sm text-[#484B66] hover:text-[#12142d] cursor-pointer;
+  }
 
-.itsware-clickup-attach-wrapper {
-  @apply relative mt-4;
-}
+  .itsware-clickup-attach-wrapper {
+    @apply w-full relative;
+  }
 
-.itsware-clickup-device-list {
-  @apply absolute bg-white border border-[#e8e8e8] rounded-md shadow-lg p-4 w-[300px] z-50;
-  top: calc(100% + 4px);
-  left: 0;
-}
+  .itsware-clickup-device-list {
+    @apply absolute bg-white border border-[#e8e8e8] rounded-md shadow-lg p-4 w-[300px] z-50;
+    top: calc(100% + 4px);
+    left: 0;
+  }
 
-.itsware-clickup-device-list-header {
-  @apply flex justify-between items-center mb-3;
-}
+  .itsware-clickup-device-list-header {
+    @apply flex justify-between items-center mb-3;
+  }
 
-.itsware-clickup-device-list-header h3 {
-  @apply text-[#484B66] font-semibold;
-}
+  .itsware-clickup-device-list-header h3 {
+    @apply text-[#484B66] font-semibold;
+  }
 
-.itsware-clickup-close-button {
-  @apply text-2xl text-[#484B66] hover:text-[#12142d] cursor-pointer;
-}
+  .itsware-clickup-close-button {
+    @apply text-2xl text-[#484B66] hover:text-[#12142d] cursor-pointer;
+  }
 
-.itsware-clickup-device-item {
-  @apply flex justify-between items-center py-2 border-b border-[#e8e8e8] last:border-0;
-}
+  .itsware-clickup-device-item {
+    @apply flex justify-between items-center py-2 border-b border-[#e8e8e8] last:border-0;
+  }
 
-.itsware-clickup-device-item strong {
-  @apply block text-[#484B66];
-}
+  .itsware-clickup-device-item strong {
+    @apply block text-[#484B66];
+  }
 
-.itsware-clickup-device-item span {
-  @apply text-sm text-[#838383];
-}
+  .itsware-clickup-device-item span {
+    @apply text-sm text-[#838383];
+  }
 
-.itsware-clickup-attach-device {
-  @apply px-3 py-1 text-sm text-white bg-gradient-to-b from-[#12142d] to-[#0b0d1a] rounded border border-[#484B66] hover:opacity-90;
-}
+  .itsware-clickup-attach-device {
+    @apply px-3 py-1 text-sm text-white bg-gradient-to-b from-[#12142d] to-[#0b0d1a] rounded border border-[#484B66] hover:opacity-90;
+  }
 
-.itsware-clickup-device-search {
-  @apply w-full px-3 py-2 mb-3 border border-[#e8e8e8] rounded-md text-[#484B66] text-sm;
-  @apply focus:outline-none focus:border-[#12142d] focus:ring-1 focus:ring-[#12142d];
-}
+  .itsware-clickup-device-search {
+    @apply w-full px-3 py-2 mb-3 border border-[#e8e8e8] rounded-md text-[#484B66] text-sm;
+    @apply focus:outline-none focus:border-[#12142d] focus:ring-1 focus:ring-[#12142d];
+  }
 
-.itsware-clickup-device-list-items {
-  @apply max-h-[300px] overflow-y-auto;
+  .itsware-clickup-device-list-items {
+    @apply max-h-[300px] overflow-y-auto;
+  }
+
+  .itsware-clickup-attached-device {
+    @apply mb-4 p-3 bg-[#f8f9fa] rounded-md border border-[#e8e8e8];
+  }
+
+  .itsware-clickup-device-details {
+    @apply flex gap-4 mt-1;
+  }
+
+  .itsware-clickup-device-details span {
+    @apply text-sm text-[#838383];
+  }
+
+  .itsware-clickup-no-devices {
+    @apply text-[#838383] text-sm;
+  }
 }

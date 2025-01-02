@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Chrome Extension POC",
   "permissions": ["tabs", "activeTab", "storage", "scripting"],
-  "host_permissions": ["<all_urls>", "https://*.itsware.com/*"],
+  "host_permissions": ["https://*.itsware.com/*"],
   "background": {
     "service_worker": "background.js"
   },
@@ -25,7 +25,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["https://*.itsware.com/*", "https://app.clickup.com/*"],
       "js": ["content.js"]
     }
   ],

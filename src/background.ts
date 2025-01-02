@@ -1,18 +1,24 @@
-// Listen for messages from content script
+// Listen for messages from content and popup scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'OAUTH_CODE_RECEIVED') {
     handleAuthCode(message.code, sender.tab?.id)
     sendResponse({ status: 'received' })
   } else if (message.type === 'CHECK_AUTH') {
     checkAuth().then(sendResponse)
-    return true // Keep channel open for async response
+    return true
+  } else if (message.type === 'ATTACH_DEVICE') {
+    handleDeviceAttachment(message.deviceId, message.taskUrl).then(sendResponse)
+    return true
   }
-  return true
+  return true // Keep channel open for async response
 })
 
+// oAuth Step 1
 async function handleAuthCode(code: string, tabId?: number) {
   try {
     console.log('Received auth code:', code)
+
+    // Query ItsWare oAuth endpoint to get authToken and refreshToken
     const tokens = await exchangeCodeForTokens(code)
     await storeTokens(tokens)
 
@@ -20,7 +26,7 @@ async function handleAuthCode(code: string, tabId?: number) {
     const devices = await fetchItsWareDevices()
     await chrome.storage.local.set({ itsWareDevices: devices })
 
-    // Redirect to ClickUp if we have the tab ID
+    // Redirect to ClickUp
     if (tabId) {
       chrome.tabs.update(tabId, { url: 'https://app.clickup.com' })
     }
@@ -29,6 +35,7 @@ async function handleAuthCode(code: string, tabId?: number) {
   }
 }
 
+// oAuth Step 2
 async function exchangeCodeForTokens(code: string) {
   // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 500))
@@ -53,8 +60,8 @@ async function checkAuth() {
   return { isAuthenticated: !!itsWareAuthToken, authToken: itsWareAuthToken }
 }
 
+// Simulate API call fetching Devices for this client
 async function fetchItsWareDevices() {
-  // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 300))
 
   return [
@@ -62,37 +69,37 @@ async function fetchItsWareDevices() {
       id: 1,
       device: 'Dell G5 SE',
       cabinet: 'Secondary Cabinet',
-      date: '05/30/2024',
+      date: '11/20/2024',
     },
     {
       id: 2,
       device: 'iPad Pro M4',
       cabinet: 'Main Cabinet',
-      date: '05/30/2024',
+      date: '12/04/2024',
     },
     {
       id: 3,
       device: 'Lenovo Windows 11',
       cabinet: 'Secondary Cabinet',
-      date: '05/30/2024',
+      date: '12/25/2024',
     },
     {
       id: 4,
       device: 'MacBook Pro 2016',
       cabinet: 'Main Cabinet',
-      date: '05/30/2024',
+      date: '12/29/2024',
     },
     {
       id: 5,
       device: 'Samsung Galaxy s25',
       cabinet: 'Secondary Cabinet',
-      date: '05/30/2024',
+      date: '01/01/2025',
     },
     {
       id: 6,
       device: 'Surface Pro',
       cabinet: 'Main Cabinet',
-      date: '05/30/2024',
+      date: '01/02/2025',
     },
     {
       id: 7,
@@ -102,3 +109,23 @@ async function fetchItsWareDevices() {
     },
   ]
 }
+
+// Store newly attached devices
+async function handleDeviceAttachment(deviceId: number, taskUrl: string) {
+  const { itsWareClickUpDevices = {} } = await chrome.storage.local.get(
+    'itsWareClickUpDevices'
+  )
+
+  if (!itsWareClickUpDevices[taskUrl]) {
+    itsWareClickUpDevices[taskUrl] = []
+  }
+
+  if (!itsWareClickUpDevices[taskUrl].includes(deviceId)) {
+    itsWareClickUpDevices[taskUrl].push(deviceId)
+    await chrome.storage.local.set({ itsWareClickUpDevices })
+  }
+
+  return { success: true }
+}
+
+// TODO: Refresh authToken periodically

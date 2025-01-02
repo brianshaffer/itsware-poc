@@ -4,3 +4,7 @@ export interface ItsWareDevice {
   cabinet: string
   date: string
 }
+
+export interface ItsWareClickUpDevices {
+  [clickUpTaskUrl: string]: number[] // Array of device IDs
+}

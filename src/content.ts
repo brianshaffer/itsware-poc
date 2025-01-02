@@ -1,7 +1,21 @@
 import { ItsWareDevice } from './types/itsware'
 
-// Check if we're on the OAuth success page
-if (window.location.pathname === '/extension-auth-success') {
+///////////////////
+// QUALIFY URLS  //
+///////////////////
+// Check if we're on the initial oAuth login page
+if (window.location.hostname === 'oauth2.itsware.com') {
+  // Ensure we have the redirect_uri (TODO: plus other variables depending on ItsWare spec)
+  const urlParams = new URLSearchParams(window.location.search)
+  const redirectUri = urlParams.get('redirect_uri')
+
+  if (redirectUri) {
+    console.log('On ItsWare OAuth page')
+    // Inject fake auth form for POC
+    injectOAuthForm(redirectUri)
+  }
+} else if (window.location.pathname === '/extension-auth-success') {
+  // Check if we're on the OAuth success page
   console.log('On OAuth2 success page')
 
   // Get the authorization code from URL params
@@ -18,18 +32,53 @@ if (window.location.pathname === '/extension-auth-success') {
       }
     )
   }
-} else if (window.location.hostname === 'oauth2.itsware.com') {
-  // Check if we're on the initial oAuth page (with required URL parameters)
-  const urlParams = new URLSearchParams(window.location.search)
-  const redirectUri = urlParams.get('redirect_uri')
+}
 
-  if (redirectUri) {
-    console.log('On ItsWare OAuth page')
-    // Inject fake auth form for POC
-    injectOAuthForm(redirectUri)
+// Initial detection if on ClickUp Task URL
+handleClickUpTaskPage()
+
+// Add listener for ClickUp URL and changes (since ClickUp is a PWA without full page reloads)
+let lastUrl = window.location.href
+const urlObserver = new MutationObserver(() => {
+  if (lastUrl !== window.location.href) {
+    lastUrl = window.location.href
+    handleClickUpTaskPage()
+  }
+})
+
+// Create observer for document body and URL changes
+urlObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+})
+
+// ClickUp Task Page Handler
+function handleClickUpTaskPage() {
+  const taskPattern = /^https:\/\/app\.clickup\.com\/t\/\w+$/
+  if (taskPattern.test(window.location.href)) {
+    console.log('On ClickUp task page')
+    injectStyles()
+
+    // Declare MutationObserver to wait for hero section before creating ItsWare embedding
+    const observer = new MutationObserver((mutations, obs) => {
+      const heroSection = document.querySelector('.cu-task-hero-section')
+      if (heroSection && !document.getElementById('itsware-clickup-embed')) {
+        injectItsWareEmbed()
+        obs.disconnect() // Stop observing once we've injected
+      }
+    })
+
+    // Create observer for Hero Section
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
   }
 }
 
+////////////////////////
+// CONTENT INJECTIONS //
+////////////////////////
 function injectOAuthForm(redirectUri: string) {
   const formDiv = document.createElement('div')
   formDiv.style.cssText = `
@@ -113,30 +162,6 @@ function injectOAuthForm(redirectUri: string) {
   })
 }
 
-// ClickUp task page handler
-function handleClickUpTaskPage() {
-  const taskPattern = /^https:\/\/app\.clickup\.com\/t\/\w+$/
-  if (taskPattern.test(window.location.href)) {
-    console.log('On ClickUp task page')
-    injectStyles()
-
-    // Use MutationObserver to wait for hero section
-    const observer = new MutationObserver((mutations, obs) => {
-      const heroSection = document.querySelector('.cu-task-hero-section')
-      if (heroSection && !document.getElementById('itsware-clickup-embed')) {
-        injectItsWareEmbed()
-        obs.disconnect() // Stop observing once we've injected
-      }
-    })
-
-    // Start observing
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    })
-  }
-}
-
 function injectStyles() {
   if (document.getElementById('itsware-clickup-styles')) return
 
@@ -149,19 +174,31 @@ function injectStyles() {
 }
 
 async function injectItsWareEmbed() {
+  // only add embed if doesn't already exist
   if (document.getElementById('itsware-clickup-embed')) return
 
+  // ensure ClickUp page has been sufficiently rendered
   const heroSection = document.querySelector('.cu-task-hero-section')
   if (heroSection) {
+    // create embedding
     const embedDiv = document.createElement('div')
     embedDiv.id = 'itsware-clickup-embed'
 
-    // Check auth status and get devices
-    const [authResponse, { itsWareDevices }] = await Promise.all([
+    // check authentication and get devices if authed
+    const taskUrl = window.location.href
+    const [authResponse, storage] = await Promise.all([
       chrome.runtime.sendMessage({ type: 'CHECK_AUTH' }),
-      chrome.storage.local.get('itsWareDevices'),
+      chrome.storage.local.get(['itsWareDevices', 'itsWareClickUpDevices']),
     ])
 
+    // sort devices to filter out already attached ones
+    const { itsWareDevices = [], itsWareClickUpDevices = {} } = storage
+    const attachedDeviceIds = itsWareClickUpDevices[taskUrl] || []
+    const availableDevices = itsWareDevices.filter(
+      (d: ItsWareDevice) => !attachedDeviceIds.includes(d.id)
+    )
+
+    // create embedding html
     embedDiv.innerHTML = `
       <div class="itsware-clickup-container">
         <div class="itsware-clickup-header">
@@ -180,37 +217,36 @@ async function injectItsWareEmbed() {
             ${
               authResponse.isAuthenticated
                 ? `
-              <div class="itsware-clickup-devices">
-                <div class="itsware-clickup-attach-wrapper">
-                  <button class="itsware-clickup-attach-button">+ Attach a device</button>
-                  <div id="itsware-device-list" class="itsware-clickup-device-list" style="display: none;">
-                    <div class="itsware-clickup-device-list-header">
-                      <h3>Available Devices</h3>
-                      <button class="itsware-clickup-close-button">×</button>
-                    </div>
-                    <input 
-                      type="text" 
-                      placeholder="Search devices..."
-                      class="itsware-clickup-device-search"
-                    />
-                    <ul class="itsware-clickup-device-list-items">
-                      ${itsWareDevices
-                        ?.map(
-                          (device: ItsWareDevice) => `
-                        <li class="itsware-clickup-device-item">
-                          <div>
-                            <strong>${device.device}</strong>
-                            <span>${device.cabinet}</span>
-                          </div>
-                          <button class="itsware-clickup-attach-device" data-device-id="${device.id}">
-                            Attach
-                          </button>
-                        </li>
-                      `
-                        )
-                        .join('')}
-                    </ul>
+              <div class="itsware-clickup-devices"></div>
+              <div class="itsware-clickup-attach-wrapper">
+                <button class="itsware-clickup-attach-button">+ Attach a device</button>
+                <div id="itsware-device-list" class="itsware-clickup-device-list" style="display: none;">
+                  <div class="itsware-clickup-device-list-header">
+                    <h3>Available Devices</h3>
+                    <button class="itsware-clickup-close-button">×</button>
                   </div>
+                  <input 
+                    type="text" 
+                    placeholder="Search devices..."
+                    class="itsware-clickup-device-search"
+                  />
+                  <ul class="itsware-clickup-device-list-items">
+                    ${availableDevices
+                      .map(
+                        (device: ItsWareDevice) => `
+                      <li class="itsware-clickup-device-item">
+                        <div>
+                          <strong>${device.device}</strong>
+                          <span>${device.cabinet}</span>
+                        </div>
+                        <button class="itsware-clickup-attach-device" data-device-id="${device.id}">
+                          Attach
+                        </button>
+                      </li>
+                    `
+                      )
+                      .join('')}
+                  </ul>
                 </div>
               </div>
             `
@@ -230,52 +266,99 @@ async function injectItsWareEmbed() {
       </div>
     `
 
-    // Add event listeners if authenticated
     if (authResponse.isAuthenticated) {
-      const deviceList = embedDiv.querySelector('#itsware-device-list')
-      const attachButton = embedDiv.querySelector(
-        '.itsware-clickup-attach-button'
+      const devicesContainer = embedDiv.querySelector(
+        '.itsware-clickup-devices'
       )
-      const closeButton = embedDiv.querySelector(
-        '.itsware-clickup-close-button'
-      )
-      const searchInput = embedDiv.querySelector(
-        '.itsware-clickup-device-search'
-      )
+      if (devicesContainer) {
+        const { itsWareDevices, attachedDeviceIds } =
+          await renderAttachedDevices(devicesContainer, taskUrl)
 
-      attachButton?.addEventListener('click', () => {
-        deviceList?.setAttribute('style', 'display: block;')
-      })
+        // Update device attachment handler
+        embedDiv
+          .querySelectorAll('.itsware-clickup-attach-device')
+          .forEach((button) => {
+            button.addEventListener('click', async (e) => {
+              const deviceId = Number(
+                (e.currentTarget as HTMLButtonElement).dataset.deviceId
+              )
+              const deviceList = embedDiv.querySelector('#itsware-device-list')
+              const deviceItem = (e.currentTarget as HTMLElement).closest(
+                '.itsware-clickup-device-item'
+              )
 
-      searchInput?.addEventListener('input', (e) => {
-        const search = (e.target as HTMLInputElement).value.toLowerCase()
-        const items = embedDiv.querySelectorAll('.itsware-clickup-device-item')
+              await chrome.runtime.sendMessage({
+                type: 'ATTACH_DEVICE',
+                deviceId,
+                taskUrl,
+              })
 
-        items.forEach((item) => {
-          const deviceName =
-            item.querySelector('strong')?.textContent?.toLowerCase() || ''
-          ;(item as HTMLElement).style.display = deviceName.includes(search)
-            ? 'flex'
-            : 'none'
+              // Re-render attached devices
+              await renderAttachedDevices(devicesContainer, taskUrl)
+
+              // Remove from available list and hide
+              deviceItem?.remove()
+              if (deviceList) {
+                deviceList.setAttribute('style', 'display: none;')
+
+                // Check if list is empty
+                const remainingDevices = deviceList.querySelectorAll(
+                  '.itsware-clickup-device-item'
+                )
+                if (remainingDevices?.length === 0) {
+                  const listContainer = deviceList.querySelector(
+                    '.itsware-clickup-device-list-items'
+                  )
+                  if (listContainer) {
+                    listContainer.innerHTML = `
+                    <li class="itsware-clickup-device-item" style="justify-content: center; color: #838383;">
+                      No more devices available
+                    </li>
+                  `
+                  }
+                }
+              }
+            })
+          })
+
+        // Add button click handlers
+        const deviceList = embedDiv.querySelector('#itsware-device-list')
+        const attachButton = embedDiv.querySelector(
+          '.itsware-clickup-attach-button'
+        )
+        const closeButton = embedDiv.querySelector(
+          '.itsware-clickup-close-button'
+        )
+        const searchInput = embedDiv.querySelector(
+          '.itsware-clickup-device-search'
+        )
+
+        // Show device list
+        attachButton?.addEventListener('click', () => {
+          deviceList?.setAttribute('style', 'display: block;')
         })
-      })
 
-      closeButton?.addEventListener('click', () => {
-        deviceList?.setAttribute('style', 'display: none;')
-      })
+        // Close device list
+        closeButton?.addEventListener('click', () => {
+          deviceList?.setAttribute('style', 'display: none;')
+        })
 
-      // Handle attach device clicks
-      embedDiv
-        .querySelectorAll('.itsware-clickup-attach-device')
-        .forEach((button) => {
-          button.addEventListener('click', (e) => {
-            const deviceId = (e.currentTarget as HTMLButtonElement).dataset
-              .deviceId
-            console.log('Attaching device:', deviceId)
-            deviceList?.setAttribute('style', 'display: none;')
-            // TODO: Handle device attachment
+        // Handle search filtering
+        searchInput?.addEventListener('input', (e) => {
+          const search = (e.target as HTMLInputElement).value.toLowerCase()
+          const items = embedDiv.querySelectorAll(
+            '.itsware-clickup-device-item'
+          )
+
+          items.forEach((item) => {
+            const deviceName =
+              item.querySelector('strong')?.textContent?.toLowerCase() || ''
+            ;(item as HTMLElement).style.display = deviceName.includes(search)
+              ? 'flex'
+              : 'none'
           })
         })
+      }
     }
 
     heroSection.parentNode?.insertBefore(embedDiv, heroSection.nextSibling)
@@ -283,20 +366,31 @@ async function injectItsWareEmbed() {
   }
 }
 
-// Initial check
-handleClickUpTaskPage()
+// Re-render attached devices when updated
+async function renderAttachedDevices(container: Element, taskUrl: string) {
+  const { itsWareDevices = [], itsWareClickUpDevices = {} } =
+    await chrome.storage.local.get(['itsWareDevices', 'itsWareClickUpDevices'])
 
-// Listen for URL changes only
-let lastUrl = window.location.href
-const urlObserver = new MutationObserver(() => {
-  if (lastUrl !== window.location.href) {
-    lastUrl = window.location.href
-    handleClickUpTaskPage()
-  }
-})
+  const attachedDeviceIds = itsWareClickUpDevices[taskUrl] || []
+  const attachedDevices = itsWareDevices.filter((d: ItsWareDevice) =>
+    attachedDeviceIds.includes(d.id)
+  )
 
-// Observe the document body for URL changes
-urlObserver.observe(document.body, {
-  childList: true,
-  subtree: true,
-})
+  container.innerHTML = attachedDevices.length
+    ? attachedDevices
+        .map(
+          (device: ItsWareDevice) => `
+          <div class="itsware-clickup-attached-device">
+            <strong>${device.device}</strong>
+            <div class="itsware-clickup-device-details">
+              <span>${device.cabinet}</span>
+              <span>${device.date}</span>
+            </div>
+          </div>
+        `
+        )
+        .join('')
+    : `<div class="itsware-clickup-no-devices">No attached devices</div>`
+
+  return { itsWareDevices, attachedDeviceIds }
+}

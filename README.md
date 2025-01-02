@@ -1,7 +1,10 @@
-# ItsWare Chrome Extension PoC
+# ItsWare Chrome Extension POC
 
-````npm i
-npm run build```
+### Build the extension
 
-Open chrome://extensions, enable Developer Mode, click Load Unpacked, and browse for the `/build` folder created during the build process.
-````
+```
+npm i
+npm run build
+```
+
+Open <chrome://extensions>, enable Developer Mode, click Load Unpacked, and browse for the `/build` folder created during the build process.
