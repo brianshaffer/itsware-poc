@@ -1,3 +1,5 @@
+import { ItsWareDevice } from './types/itsware'
+
 // Check if we're on the OAuth success page
 if (window.location.pathname === '/extension-auth-success') {
   console.log('On OAuth2 success page')
@@ -97,9 +99,7 @@ function injectOAuthForm(redirectUri: string) {
     </button>
   </form>
 </div>
-
   `
-
   document.body.appendChild(formDiv)
 
   // Add form submit handler
@@ -156,8 +156,11 @@ async function injectItsWareEmbed() {
     const embedDiv = document.createElement('div')
     embedDiv.id = 'itsware-clickup-embed'
 
-    // Check auth status
-    const response = await chrome.runtime.sendMessage({ type: 'CHECK_AUTH' })
+    // Check auth status and get devices
+    const [authResponse, { itsWareDevices }] = await Promise.all([
+      chrome.runtime.sendMessage({ type: 'CHECK_AUTH' }),
+      chrome.storage.local.get('itsWareDevices'),
+    ])
 
     embedDiv.innerHTML = `
       <div class="itsware-clickup-container">
@@ -175,11 +178,40 @@ async function injectItsWareEmbed() {
         <div class="itsware-clickup-content">
           <div class="itsware-clickup-content-wrapper">
             ${
-              response.isAuthenticated
+              authResponse.isAuthenticated
                 ? `
-              <div class="itsware-clickup-device-info">
-                <p>Connected Device: MacBook Pro</p>
-                <p>Status: Active</p>
+              <div class="itsware-clickup-devices">
+                <div class="itsware-clickup-attach-wrapper">
+                  <button class="itsware-clickup-attach-button">+ Attach a device</button>
+                  <div id="itsware-device-list" class="itsware-clickup-device-list" style="display: none;">
+                    <div class="itsware-clickup-device-list-header">
+                      <h3>Available Devices</h3>
+                      <button class="itsware-clickup-close-button">×</button>
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Search devices..."
+                      class="itsware-clickup-device-search"
+                    />
+                    <ul class="itsware-clickup-device-list-items">
+                      ${itsWareDevices
+                        ?.map(
+                          (device: ItsWareDevice) => `
+                        <li class="itsware-clickup-device-item">
+                          <div>
+                            <strong>${device.device}</strong>
+                            <span>${device.cabinet}</span>
+                          </div>
+                          <button class="itsware-clickup-attach-device" data-device-id="${device.id}">
+                            Attach
+                          </button>
+                        </li>
+                      `
+                        )
+                        .join('')}
+                    </ul>
+                  </div>
+                </div>
               </div>
             `
                 : `
@@ -197,6 +229,54 @@ async function injectItsWareEmbed() {
         </div>
       </div>
     `
+
+    // Add event listeners if authenticated
+    if (authResponse.isAuthenticated) {
+      const deviceList = embedDiv.querySelector('#itsware-device-list')
+      const attachButton = embedDiv.querySelector(
+        '.itsware-clickup-attach-button'
+      )
+      const closeButton = embedDiv.querySelector(
+        '.itsware-clickup-close-button'
+      )
+      const searchInput = embedDiv.querySelector(
+        '.itsware-clickup-device-search'
+      )
+
+      attachButton?.addEventListener('click', () => {
+        deviceList?.setAttribute('style', 'display: block;')
+      })
+
+      searchInput?.addEventListener('input', (e) => {
+        const search = (e.target as HTMLInputElement).value.toLowerCase()
+        const items = embedDiv.querySelectorAll('.itsware-clickup-device-item')
+
+        items.forEach((item) => {
+          const deviceName =
+            item.querySelector('strong')?.textContent?.toLowerCase() || ''
+          ;(item as HTMLElement).style.display = deviceName.includes(search)
+            ? 'flex'
+            : 'none'
+        })
+      })
+
+      closeButton?.addEventListener('click', () => {
+        deviceList?.setAttribute('style', 'display: none;')
+      })
+
+      // Handle attach device clicks
+      embedDiv
+        .querySelectorAll('.itsware-clickup-attach-device')
+        .forEach((button) => {
+          button.addEventListener('click', (e) => {
+            const deviceId = (e.currentTarget as HTMLButtonElement).dataset
+              .deviceId
+            console.log('Attaching device:', deviceId)
+            deviceList?.setAttribute('style', 'display: none;')
+            // TODO: Handle device attachment
+          })
+        })
+    }
 
     heroSection.parentNode?.insertBefore(embedDiv, heroSection.nextSibling)
     console.log('ItsWare embed injected')
